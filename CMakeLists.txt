@@ -1,7 +1,7 @@
 ########################################################################
 # Project setup
 ########################################################################
-cmake_minimum_required(VERSION 2.8.9)
+cmake_minimum_required(VERSION 3.1.0)
 project(PothosPlotters CXX)
 
 if(${CMAKE_PROJECT_NAME} STREQUAL ${PROJECT_NAME})
@@ -18,28 +18,10 @@ if (CMAKE_PREFIX_PATH)
 endif (CMAKE_PREFIX_PATH)
 
 ########################################################################
-# QT5 devel setup
+# Qt devel setup
 ########################################################################
-#http://www.kdab.com/using-cmake-with-qt-5/
-# Tell CMake to run moc when necessary:
+find_package(Qt5 COMPONENTS Widgets)
 set(CMAKE_AUTOMOC ON)
-# As moc files are generated in the binary dir, tell CMake
-# to always look for includes there:
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
-
-unset(Qt5Enables)
-foreach(comp Widgets Concurrent OpenGL Svg PrintSupport)
-    find_package(Qt5${comp})
-    set(Qt5Enables "${Qt5Enables};Qt5${comp}_FOUND")
-
-    if(Qt5${comp}_FOUND)
-        include_directories(${Qt5${comp}_INCLUDE_DIRS})
-        add_definitions(${Qt5${comp}_DEFINITIONS})
-        list(APPEND Qt5_LIBRARIES ${Qt5${comp}_LIBRARIES})
-    else()
-        MESSAGE(WARNING "Cant find Qt5${comp}")
-    endif()
-endforeach(comp)
 
 ########################################################################
 # Spuce library
@@ -61,15 +43,13 @@ endif (Spuce_FOUND)
 ########################################################################
 include(FeatureSummary)
 include(CMakeDependentOption)
-cmake_dependent_option(ENABLE_PLOTTERS "Enable Pothos Plotters component" ON "Pothos_FOUND;${Qt5Enables}" OFF)
+cmake_dependent_option(ENABLE_PLOTTERS "Enable Pothos Plotters component" ON "Pothos_FOUND;Qt5_FOUND" OFF)
 add_feature_info(Plotters ENABLE_PLOTTERS "Graphical plotter widgets for the GUI")
 
 ########################################################################
 # Qwt setup
 ########################################################################
 find_package(Qwt)
-
-add_definitions(-DQWT_DLL)
 
 if (QWT_FOUND AND NOT QWT_VERSION_STRING)
     message(WARNING "Failed to extract QWT_VERSION_STRING from ${QWT_INCLUDE_DIRS} - using built-in Qwt")
@@ -88,12 +68,17 @@ endif (QWT_FOUND)
 
 if (QWT_FOUND)
 
-    include_directories(${QWT_INCLUDE_DIRS})
-    list(APPEND Qt5_LIBRARIES ${QWT_LIBRARIES})
+    add_library(PothosQwt SHARED IMPORTED)
+    set_target_properties(PothosQwt PROPERTIES IMPORTED_LOCATION ${QWT_LIBRARIES})
+    set_target_properties(PothosQwt PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${QWT_INCLUDE_DIRS}")
+    target_compile_definitions(PothosQwt INTERFACE -DQWT_DLL)
     message(STATUS "QWT_INCLUDE_DIRS: ${QWT_INCLUDE_DIRS}")
     message(STATUS "QWT_LIBRARIES: ${QWT_LIBRARIES}")
 
 elseif (ENABLE_PLOTTERS)
+
+    #compiling qwt from source requires many more Qt libraries
+    find_package(Qt5 COMPONENTS Widgets Concurrent OpenGL Svg PrintSupport)
 
     set(QWT_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/qwt6/src)
 
@@ -111,18 +96,22 @@ elseif (ENABLE_PLOTTERS)
     endif ()
     message(STATUS "QWT_VERSION_STRING: ${QWT_VERSION_STRING}")
 
-    include_directories(${QWT_SRC_DIR})
     file(GLOB QWT_SOURCES "${QWT_SRC_DIR}/*.cpp")
     add_library(PothosQwt SHARED ${QWT_SOURCES})
+    target_include_directories(PothosQwt PUBLIC ${QWT_SRC_DIR})
     set_target_properties(PothosQwt PROPERTIES DEFINE_SYMBOL "QWT_MAKEDLL")
     set_target_properties(PothosQwt PROPERTIES VERSION ${QWT_VERSION_STRING})
-    target_link_libraries(PothosQwt ${Qt5_LIBRARIES})
+    target_link_libraries(PothosQwt PRIVATE Qt5::Widgets)
+    target_link_libraries(PothosQwt PRIVATE Qt5::OpenGL)
+    target_link_libraries(PothosQwt PRIVATE Qt5::Concurrent)
+    target_link_libraries(PothosQwt PRIVATE Qt5::PrintSupport)
+    target_link_libraries(PothosQwt PRIVATE Qt5::Svg)
+    target_compile_definitions(PothosQwt PUBLIC -DQWT_DLL)
     install(TARGETS PothosQwt
-        LIBRARY DESTINATION lib${LIB_SUFFIX} # .so file
-        ARCHIVE DESTINATION lib${LIB_SUFFIX} # .lib file
-        RUNTIME DESTINATION bin              # .dll file
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} # .so file
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} # .lib file
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} # .dll file
     )
-    list(APPEND Qt5_LIBRARIES PothosQwt)
 
 endif (QWT_FOUND)
 
@@ -131,20 +120,19 @@ endif (QWT_FOUND)
 ########################################################################
 if (ENABLE_PLOTTERS)
 
-include_directories(${Pothos_INCLUDE_DIRS}) #include Pothos/Config.hpp
 file(GLOB PLOTTER_UTILS_SOURCES "PlotterUtils/*.cpp")
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/PlotterUtils)
 add_library(PothosPlotterUtils SHARED ${PLOTTER_UTILS_SOURCES})
+target_include_directories(PothosPlotterUtils PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/PlotterUtils)
 set_target_properties(PothosPlotterUtils PROPERTIES DEFINE_SYMBOL "POTHOS_PLOTTER_UTILS_MAKEDLL")
 set_target_properties(PothosPlotterUtils PROPERTIES VERSION 0.2.0)
-target_link_libraries(PothosPlotterUtils ${Qt5_LIBRARIES})
-target_link_libraries(PothosPlotterUtils ${Pothos_LIBRARIES})
+target_link_libraries(PothosPlotterUtils PRIVATE Qt5::Widgets)
+target_link_libraries(PothosPlotterUtils PRIVATE PothosQwt)
+target_link_libraries(PothosPlotterUtils PRIVATE Pothos)
 install(TARGETS PothosPlotterUtils
-    LIBRARY DESTINATION lib${LIB_SUFFIX} # .so file
-    ARCHIVE DESTINATION lib${LIB_SUFFIX} # .lib file
-    RUNTIME DESTINATION bin              # .dll file
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} # .so file
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} # .lib file
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} # .dll file
 )
-list(APPEND Qt5_LIBRARIES PothosPlotterUtils)
 
 endif (ENABLE_PLOTTERS)
 

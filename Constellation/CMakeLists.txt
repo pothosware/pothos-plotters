@@ -17,6 +17,9 @@ POTHOS_MODULE_UTIL(
         ConstellationWork.cpp
         ConstellationDisplay.cpp
     DOC_SOURCES Constellation.cpp
-    LIBRARIES ${Qt5_LIBRARIES}
+    LIBRARIES
+        Qt5::Widgets
+        PothosQwt
+        PothosPlotterUtils
     DESTINATION plotters
 )

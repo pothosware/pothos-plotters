@@ -10,8 +10,6 @@ endif()
 ########################################################################
 # Build frequency domain plot module
 ########################################################################
-include_directories(${Spuce_INCLUDE_DIRS})
-
 POTHOS_MODULE_UTIL(
     TARGET Periodogram
     SOURCES
@@ -21,7 +19,9 @@ POTHOS_MODULE_UTIL(
         PeriodogramDisplay.cpp
     DOC_SOURCES Periodogram.cpp
     LIBRARIES
-        ${Qt5_LIBRARIES}
-        ${Spuce_LIBRARIES}
+        Qt5::Widgets
+        PothosQwt
+        PothosPlotterUtils
+        spuce
     DESTINATION plotters
 )

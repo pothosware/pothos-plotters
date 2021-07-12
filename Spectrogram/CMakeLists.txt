@@ -23,7 +23,9 @@ POTHOS_MODULE_UTIL(
         QwtColorMapMaker.cpp
     DOC_SOURCES Spectrogram.cpp
     LIBRARIES
-        ${Qt5_LIBRARIES}
-        ${Spuce_LIBRARIES}
+        Qt5::Widgets
+        PothosQwt
+        PothosPlotterUtils
+        spuce
     DESTINATION plotters
 )

@@ -18,6 +18,8 @@ POTHOS_MODULE_UTIL(
         QwtKnob.cpp
         QwtDial.cpp
     ENABLE_DOCS
-    LIBRARIES ${Qt5_LIBRARIES}
+    LIBRARIES
+        Qt5::Widgets
+        PothosQwt
     DESTINATION plotters
 )
